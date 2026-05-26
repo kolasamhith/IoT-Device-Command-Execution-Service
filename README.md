@@ -4,111 +4,226 @@ A backend service built using Spring Boot that simulates how IoT systems (such a
 
 ## 🚀 Features
 
-* Device-Based Command Processing: Execute commands on specific devices (e.g., `LAMP_101`) grouped by zones (e.g., `STREET_ZONE_A`).
-* Scheduling Engine: Supports immediate and scheduled execution of commands using a background worker.
-* Retry Mechanism: Simulates unreliable device communication by retrying failed commands with a 5-second delay, up to a maximum of 2 attempts.
-* Status Lifecycle Management: Tracks command states (`PENDING -> RUNNING -> DONE / FAILED`) for execution monitoring.
-* Logging System: Maintains execution logs for debugging and tracking command history.
-* In-Memory Architecture: Uses Java data structures (`List<T>`) for fast execution without database dependency.
+- **Device-Based Command Processing:** Execute commands on specific devices (e.g., `LAMP_101`) grouped by zones (e.g., `STREET_ZONE_A`).
+- **Zone-Level Bulk Execution:** Execute commands across an entire zone using a dedicated endpoint.
+- **Scheduling Engine:** Supports immediate and scheduled execution of commands using a background worker.
+- **Retry Mechanism:** Simulates unreliable device communication by retrying failed commands with a 5-second delay, up to a configurable maximum number of attempts.
+- **Status Lifecycle Management:** Tracks command states (`PENDING -> RUNNING -> DONE / FAILED`) for execution monitoring.
+- **Logging System:** Maintains execution logs for debugging and tracking command history.
+- **Validation Layer:** Uses DTOs with Bean Validation for clean API request validation and error handling.
+- **Thread-Safe In-Memory Architecture:** Uses Java concurrent collections (`ConcurrentHashMap`, `CopyOnWriteArrayList`) for safe multi-threaded execution without database dependency.
+- **Externalized Configuration:** Retry limits and runtime settings are managed through `application.properties`.
+
+---
 
 ## 🛠️ Tech Stack
 
-* Language: Java 17
-* Framework: Spring Boot (Web, Validation)
-* Build Tool: Maven
-* Architecture: Layered (Controller, Service, Model)
+- **Language:** Java 17
+- **Framework:** Spring Boot (Web, Validation)
+- **Build Tool:** Maven
+- **Architecture:** Layered (Controller, Service, Model, DTO)
+- **Testing:** JUnit 5
+
+---
 
 ## ⚙️ Getting Started
 
 ### Prerequisites
-* Java 17 installed on your machine.
-* Port `8081` available (configured in `application.properties`).
+
+- Java 17 installed on your machine
+- Port `8081` available (configured in `application.properties`)
 
 ### Running the Application
-1. Clone the repository.
-2. Navigate to the project root directory.
-3. Start the application using the Maven wrapper:
 
-Windows:
-Bash
+1. Clone the repository
+2. Navigate to the project root directory
+3. Start the application using the Maven wrapper
+
+#### Windows
+
+```bash
 .\mvnw spring-boot:run
-Mac / Linux:
+```
 
-Bash
+#### Mac / Linux
+
+```bash
 ./mvnw spring-boot:run
-The server will start at http://localhost:8081.
+```
 
-📡 API Documentation
-1. Queue a New Command
-Schedules a command for a device. If scheduledTime is omitted, it executes immediately.
+The server will start at:
 
-Endpoint: POST /commands
+```text
+http://localhost:8081
+```
 
-Parameters:
+---
 
-commandName (Required): The action to perform (e.g., "TurnOn", "SetDimming50").
+# 📡 API Documentation
 
-deviceId (Required): The target hardware ID.
+## 1. Queue a New Command
 
-zone (Optional): The physical grouping (Defaults to "UNKNOWN_ZONE").
+Schedules a command for a device. If `scheduledTime` is omitted, it executes immediately.
 
-scheduledTime (Optional): ISO Date-Time for future execution (e.g., 2026-03-28T22:35:00).
+### Endpoint
 
-Example Request:
+```http
+POST /commands
+```
 
-Bash
-curl -X POST "http://localhost:8081/commands?commandName=TurnOn&deviceId=LAMP_101&zone=STREET_A"
-2. View All Commands
+### Headers
+
+```http
+Content-Type: application/json
+```
+
+### JSON Payload
+
+- `commandName` (**Required**) — The action to perform (Max 50 chars)
+- `deviceId` (**Required**) — The target hardware ID
+- `commandType` (**Required**) — Action type (`TURN_ON`, `TURN_OFF`, `DIM`, `BRIGHTEN`, `SET_COLOR`, `REBOOT`)
+- `zone` (**Optional**) — The physical grouping (Defaults to `"UNKNOWN_ZONE"`)
+- `scheduledTime` (**Optional**) — ISO Date-Time for future execution
+
+### Example Request
+
+```bash
+curl -X POST "http://localhost:8081/commands" \
+-H "Content-Type: application/json" \
+-d '{
+  "commandName": "Turn on Street Light",
+  "deviceId": "LAMP_101",
+  "commandType": "TURN_ON",
+  "zone": "STREET_A"
+}'
+```
+
+---
+
+## 2. View All Commands
+
 Retrieves the current state of the command queue.
 
-Endpoint: GET /commands
+### Endpoint
 
-Example Request:
+```http
+GET /commands
+```
 
-Bash
+### Example Request
+
+```bash
 curl http://localhost:8081/commands
-3. Retrieve System Audit Logs
+```
+
+---
+
+## 3. Retrieve System Audit Logs
+
 Fetches the telemetry and execution history for the entire system.
 
-Endpoint: GET /commands/logs
+### Endpoint
 
-Example Request:
+```http
+GET /commands/logs
+```
 
-Bash
+### Example Request
+
+```bash
 curl http://localhost:8081/commands/logs
-4. Retrieve Logs for a Specific Command
+```
+
+---
+
+## 4. Retrieve Logs for a Specific Command
+
 Fetches the execution history for a single command ID, useful for tracing retries.
 
-Endpoint: GET /commands/{id}/logs
+### Endpoint
 
-Example Request:
+```http
+GET /commands/{id}/logs
+```
 
-Bash
+### Example Request
+
+```bash
 curl http://localhost:8081/commands/1/logs
-5. Force Execute Command (Manual Override)
+```
+
+---
+
+## 5. Force Execute Command (Manual Override)
+
 Bypasses the scheduler and forces an immediate execution attempt.
 
-Endpoint: POST /commands/{id}/execute
+### Endpoint
 
-Example Request:
+```http
+POST /commands/{id}/execute
+```
 
-Bash
+### Example Request
+
+```bash
 curl -X POST http://localhost:8081/commands/1/execute
-🧠 Simulation Logic
+```
+
+---
+
+## 6. Execute All Commands for a Zone
+
+Triggers execution for all commands belonging to a specific zone.
+
+### Endpoint
+
+```http
+POST /commands/zones/{zone}/execute
+```
+
+### Example Request
+
+```bash
+curl -X POST http://localhost:8081/commands/zones/STREET_A/execute
+```
+
+---
+
+# 🧠 Simulation Logic
+
 To simulate real-world IoT behavior without physical devices:
 
-A background scheduler runs every 5 seconds to process pending commands.
+- A background scheduler runs every 5 seconds to process `PENDING` commands
+- Device availability is simulated using the command ID
 
-Device availability is simulated using command ID:
+### Execution Simulation
 
-Even IDs -> Successful execution (DONE)
+- **Even IDs** → Successful execution (`DONE`)
+- **Odd IDs** → Simulated device failure
 
-Odd IDs -> Simulated device failure
+### Retry Logic
 
-Retry Logic:
+- Failed commands are retried up to the configured retry limit
+- A 5-second delay is applied before each retry
+- After max retries, the command is marked as `FAILED`
 
-Failed commands are retried up to 2 times
+---
 
-A 5-second delay is applied before each retry
+# ✅ Testing
 
-After max retries, the command is marked as FAILED
+Unit tests are included for the service layer.
+
+### Run Tests
+
+```bash
+./mvnw test
+```
+
+The test suite validates:
+
+- Retry handling
+- Command execution flow
+- Zone-level execution
+- Scheduler behavior
+- Failure state transitions
