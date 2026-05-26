@@ -3,22 +3,26 @@ package com.example.demo.model;
 import java.time.LocalDateTime;
 
 public class DeviceCommand {
+
     private Long id;
-    private String commandName; 
-    private String deviceId;    
-    private String zone;        
+    private String commandName;
+    private CommandType commandType;
+    private String deviceId;
+    private String zone;
     private CommandStatus status;
     private LocalDateTime scheduledTime;
-    private int retryCount; // NEW FIELD
+    private int retryCount;
 
-    public DeviceCommand(Long id, String commandName, String deviceId, String zone, LocalDateTime scheduledTime) {
+    public DeviceCommand(Long id, String commandName, CommandType commandType,
+                         String deviceId, String zone, LocalDateTime scheduledTime) {
         this.id = id;
         this.commandName = commandName;
+        this.commandType = commandType;
         this.deviceId = deviceId;
         this.zone = zone;
         this.status = CommandStatus.PENDING;
         this.scheduledTime = scheduledTime;
-        this.retryCount = 0; // Initialize at 0
+        this.retryCount = 0;
     }
 
     public Long getId() { return id; }
@@ -26,6 +30,9 @@ public class DeviceCommand {
 
     public String getCommandName() { return commandName; }
     public void setCommandName(String commandName) { this.commandName = commandName; }
+
+    public CommandType getCommandType() { return commandType; }
+    public void setCommandType(CommandType commandType) { this.commandType = commandType; }
 
     public String getDeviceId() { return deviceId; }
     public void setDeviceId(String deviceId) { this.deviceId = deviceId; }
@@ -39,7 +46,6 @@ public class DeviceCommand {
     public LocalDateTime getScheduledTime() { return scheduledTime; }
     public void setScheduledTime(LocalDateTime scheduledTime) { this.scheduledTime = scheduledTime; }
 
-    // NEW GETTER AND SETTER
     public int getRetryCount() { return retryCount; }
     public void incrementRetryCount() { this.retryCount++; }
 }
