@@ -32,6 +32,11 @@ public class DeviceCommandService {
     @Value("${command.max-retries:2}")
     private int maxRetries;
 
+    //Allow test classes to manually inject this property
+    protected void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
+    }
+
     // ─── Core CRUD ────────────────────────────────────────────────────────────
 
     public DeviceCommand queueCommand(String commandName, CommandType commandType,
