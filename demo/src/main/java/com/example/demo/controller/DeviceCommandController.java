@@ -1,21 +1,25 @@
 package com.example.demo.controller;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.demo.dto.CommandRequest;
+import com.example.demo.model.CommandLog;
 import com.example.demo.model.DeviceCommand;
 import com.example.demo.service.DeviceCommandService;
 
+import jakarta.validation.Valid;
+
 @RestController
-@RequestMapping("/commands") 
+@RequestMapping("/commands")
 public class DeviceCommandController {
 
     private final DeviceCommandService service;
@@ -24,49 +28,54 @@ public class DeviceCommandController {
         this.service = service;
     }
 
+    // POST /commands — queue a new command
     @PostMapping
-    public DeviceCommand createCommand(
-            @RequestParam String commandName, 
-            @RequestParam String deviceId, 
-            @RequestParam(defaultValue = "UNKNOWN_ZONE") String zone,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime scheduledTime) {
-        
-        // If no specific time is provided, execute it right now
-        if (scheduledTime == null) {
-            scheduledTime = LocalDateTime.now();
-        }
-        
-        return service.queueCommand(commandName, deviceId, zone, scheduledTime);
+    @ResponseStatus(HttpStatus.CREATED)
+    public DeviceCommand createCommand(@Valid @RequestBody CommandRequest request) {
+        return service.queueCommand(
+                request.getCommandName(),
+                request.getCommandType(),
+                request.getDeviceId(),
+                request.getZone(),
+                request.getScheduledTime()
+        );
     }
 
+    // GET /commands — list all commands
     @GetMapping
     public List<DeviceCommand> getAllCommands() {
         return service.getAllCommands();
     }
 
-    // You can keep the manual execute endpoint as an "override" to force immediate execution
-    @PostMapping("/{id}/execute")
-    public DeviceCommand executeCommand(@PathVariable Long id) {
-        service.executeCommand(id);
-        return service.getCommand(id); 
-    }
-
+    // GET /commands/{id} — get a single command
     @GetMapping("/{id}")
     public DeviceCommand getCommandStatus(@PathVariable Long id) {
         return service.getCommand(id);
     }
 
-// NEW: View system-wide audit logs
+    // POST /commands/{id}/execute — manually force immediate execution
+    @PostMapping("/{id}/execute")
+    public DeviceCommand executeCommand(@PathVariable Long id) {
+        service.executeCommand(id);
+        return service.getCommand(id);
+    }
+
+    // POST /commands/zone/{zone}/execute — execute all PENDING commands in a zone
+    @PostMapping("/zone/{zone}/execute")
+    public List<DeviceCommand> executeZone(@PathVariable String zone) {
+        return service.executeZone(zone);
+    }
+
+    // GET /commands/logs — system-wide audit trail
     @GetMapping("/logs")
-    public List<com.example.demo.model.CommandLog> getSystemLogs() {
+    public List<CommandLog> getSystemLogs() {
         return service.getAllLogs();
     }
 
-    // NEW: View execution history for a single command
+    // GET /commands/{id}/logs — execution history for a single command
     @GetMapping("/{id}/logs")
-    public List<com.example.demo.model.CommandLog> getCommandLogs(@PathVariable Long id) {
-        // First verify the command exists to trigger a 404 if it doesn't
-        service.getCommand(id);
+    public List<CommandLog> getCommandLogs(@PathVariable Long id) {
+        service.getCommand(id); // triggers 404 if not found
         return service.getLogsForCommand(id);
     }
 }
